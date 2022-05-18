@@ -1,0 +1,274 @@
+https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/HG7NV7
+
+
+
+
+----------------------------------------------------------------------------
+#Creating, Dropping, and altering Database tables.
+
+create database db1;
+use db1;
+
+CREATE TABLE flight(
+Year int, 
+Month int, 
+DayofMonth int, 
+DayOfWeek int, 
+DepTime  int, 
+CRSDepTime int, 
+ArrTime int, 
+CRSArrTime int, 
+UniqueCarrier string, 
+FlightNum int, 
+TailNum string, 
+ActualElapsedTime int, 
+CRSElapsedTime int, 
+AirTime int, 
+ArrDelay int, 
+DepDelay int, 
+Origin string, 
+Dest string, 
+Distance int, 
+TaxiIn int, 
+TaxiOut int, 
+Cancelled int, 
+CancellationCode string, 
+Diverted string, 
+CarrierDelay int, 
+WeatherDelay int, 
+NASDelay int,  
+SecurityDelay int, 
+LateAircraftDelay int
+) 
+row format delimited 
+fields terminated by ',' 
+lines terminated by '\n';
+
+desc flight;
+
+load data local inpath '/home/cipher_07/Data/flight_data.csv' into table flight;
+----------------------------------------------------------------------------
+#Alter table
+
+alter table flight rename to air_flight;
+describe air_flight;
+
+alter table air_flight add columns (source varchar(10));
+describe air_flight;
+
+alter table air_flight change source src varchar(15);
+describe air_flight;
+---------------------------------------------------------------------------
+#Drop table
+
+drop table flight;
+show table;
+
+-----------------------------------------------------------------------------
+#Creating an external Hive table.
+
+1st Terminal
+
+hdfs dfs -mkdir /user/hive/flight
+sudo service ssh start
+start-dfs.sh && start-yarn.sh && jps
+hdfs dfs -put ~/Data/2008.csv /user/hive/flight
+hdfs dfs -ls /user/hive/flight
+
+2nd Terminal
+
+CREATE EXTERNAL TABLE if not exists airlines_ext (
+Year int, 
+Month int, 
+DayofMonth int, 
+DayOfWeek int, 
+DepTime int, 
+CRSDepTime int, 
+ArrTime int, 
+CRSArrTime int, 
+UniqueCarrier string, 
+FlightNum int, 
+TailNum string, 
+ActualElapsedTime int, 
+CRSElapsedTime int, 
+AirTime int, 
+ArrDelay int, 
+DepDelay int, 
+Origin string, 
+Dest string, 
+Distance int, 
+TaxiIn int, 
+TaxiOut int, 
+Cancelled int, 
+CancellationCode string, 
+Diverted string, 
+CarrierDelay int, 
+WeatherDelay int, 
+NASDelay int, 
+SecurityDelay int, 
+LateAircraftDelay int
+) 
+row format delimited 
+fields terminated by ',' 
+lines terminated by '\n'
+stored as textfile
+location '/user/hive/flight';
+
+select * from airlines_ext limit 200;
+
+----------------------------------------------------------------------------------
+#Insert new values and field in the table
+
+insert into air_flight values(2008,1,1,2,2022,1655,2332,2227,'AS',456,'N754AS',132,152,178,54,67,'SEA','DEN',1089,7,53,'NA',4,0,4,0,11,0,17,'2548');
+insert into air_flight values(2008,1,1,2,2078,1055,2270,2345,'AS',578,'N784AS',156,132,101,33,54,'UAE','USA',1276,0,13,0,7,0,7,0,'NA',0,18,'5231');
+insert into air_flight values(2008,1,1,2,6543,2355,2073,2132,'AS',765,'N854AS',111,123,181,21,87,'GSA','IND',1765,2,27,0,'NA',0,9,0,17,0,22,'8524');
+insert into air_flight values(2008,1,1,2,6712,2055,1987,2056,'AS',981,'N154AS',187,158,136,16,22,'GFN','AUS',1898,6,21,0,'NA',0,4,0,'NA',0,11,'5247');
+
+select * from air_flight;
+
+alter table air_flight add columns (passengers varchar(10));
+
+describe air_flight;
+
+-----------------------------------------------------------------------------
+#Join table
+
+create table flight_fare( FlightNum int,  Fare int) row format delimited fields terminated by ',';
+
+load data local inpath '/home/cipher_07/Data/flight_fare.csv' into table flight_fare;
+
+select flight.Origin, flight.Dest, flight_fare.fare from flight join flight_fare on flight.FlightNum=flight_fare.FlightNum;
+
+-------------------------------------------------------------------------------
+
+#Create index on Flight Information Table
+
+create index flight_index on table air_flight(FlightNum)
+    as 'org.apache.hadoop.hive.ql.index.compact.CompactIndexHandler'
+    WITH DEFERRED REBUILD;
+show tables;
+
+----------------------------------------------------------------------------
+#Find the average departure delay per day in 2008.
+
+select avg(CarrierDelay) from airlines_ext where year = 2008;
+
+-----------------------------------------------------------------------------
+Extra
+
+
+create table flight (fno int, year int, dest varchar(10), delay float);
+desc flight;
+
+create table flight (fno int, year int, dest varchar(10), delay float)
+    row format delimited
+    fields terminated by ','
+    lines terminated by '\n'
+    stored as textfile;
+
+insert into flight values (123, 2009, "Mumbai", 30.0);
+insert into flight values (342, 2008, "Nagpur", 13.0);
+insert into flight values (232, 2008, "Aurangabad", 0.0);
+insert into flight values (103, 2009, "Kolhapur", 10.0);
+insert into flight values (200, 2008, "Jalgaon", 50.0);
+insert into flight values (112, 2009, "Amravati", 0.0);
+
+select * from flight;
+
+#Load table with data
+
+load data local inpath "flight_data.txt"
+	overwrite into table flight;
+
+select * from flight;
+
+
+create table nflight (fno int, year int, source varchar(10))
+	row format delimited
+    fields terminated by ','
+    lines terminated by '\n'
+    stored as textfile;
+
+insert into nflight values(112, 2007, "Pune");
+insert into nflight values(322, 2009, "Pune");
+insert into nflight values(170, 2009, "Pune");
+
+#Join tables
+
+select a.fno, a.year, a.dest, a.delay, b.source
+    from flight a join nflight b
+    on (a.fno = b.fno);
+	
+#Create index on Flight Information Table
+
+create index flight_index on table flight(fno)
+    as 'org.apache.hadoop.hive.ql.index.compact.CompactIndexHandler'
+    WITH DEFERRED REBUILD;
+show tables;
+
+#Find the average departure delay per day in 2008.
+
+select avg(delay) from flight where year = 2008;
+
+#Creating an external Hive table.
+
+CREATE EXTERNAL TABLE if not exists airlines (
+Year int, 
+Month int, 
+DayofMonth int, 
+DayOfWeek int, 
+DepTime int, 
+CRSDepTime int, 
+ArrTime int, 
+CRSArrTime int, 
+UniqueCarrier string, 
+FlightNum int, 
+TailNum string, 
+ActualElapsedTime int, 
+CRSElapsedTime int, 
+AirTime int, 
+ArrDelay int, 
+DepDelay int, 
+Origin string, 
+Dest string, 
+Distance int, 
+TaxiIn int, 
+TaxiOut int, 
+Cancelled int, 
+CancellationCode string, 
+Diverted string, 
+CarrierDelay int, 
+WeatherDelay int, 
+NASDelay int, 
+SecurityDelay int, 
+LateAircraftDelay int
+) 
+row format delimited 
+fields terminated by ',' 
+lines terminated by '\n';
+
+describe airlines;
+
+Load data local INPATH '/home/cipher_07/Data/2008.csv' OVERWRITE into TABLE airlines;
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------
+create table flight (fno int, year int, dest varchar(10), delay float);
+describe flight;
+
+alter table flight rename to air_flight;
+describe air_flight;
+
+alter table air_flight add columns (source varchar(10));
+describe air_flight;
+
+alter table air_flight change source src varchar(15);
+describe air_flight;

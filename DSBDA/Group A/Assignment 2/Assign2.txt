@@ -1,0 +1,43 @@
+sudo mkdir analyzelogs
+
+sudo chmod -R 777 analyzelogs/
+
+sudo chown -R cipher_07  analyzelogs/
+
+sudo cp /home/cipher_07/Data/* ~/analyzelogs/
+
+cd analyzelogs/
+
+ls
+
+sudo chmod  +r  *.*
+
+export 	CLASSPATH="$HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-client-core-3.3.2.jar:$HADOOP_HOME/share/hadoop/mapreduce/hadoop-mapreduce-client-common-3.3.2.jar:$HADOOP_HOME/share/hadoop/common/hadoop-common-3.3.2.jar:~/analyzelogs/SalesCountry/*:$HADOOP_HOME/lib/*"
+
+javac -d . SalesMapper.java SalesCountryReducer.java SalesCountryDriver.java
+
+ls
+
+sudo nano Manifest.txt
+
+Main-class: SalesCountry.SalesCountryDriver (copy this to Manifest.txt)
+
+jar -cfm analyzelogs.jar Manifest.txt SalesCountry/*.class
+
+ls
+
+sudo service ssh start
+
+start-dfs.sh && start-yarn.sh && jps
+
+sudo mkdir ~/input1000
+
+sudo cp access_log_short.csv ~/input1000/
+
+$HADOOP_HOME/bin/hdfs dfs -put ~/input1000 /
+
+$HADOOP_HOME/bin/hadoop jar analyzelogs.jar /input1000 /output1000
+
+$HADOOP_HOME/bin/hdfs dfs -cat /output1000/part-00000
+
+hadoop fs -get /output1000/part-00000 ~/analyzelogs/
